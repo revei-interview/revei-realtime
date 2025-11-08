@@ -9,8 +9,8 @@ export default async function handler(req, res) {
     // ---- INPUTS from Bubble (optional) ----
     let role = 'KYC Analyst', jd = '', resume = '', expYears = 2;
     if (req.method === 'POST') {
-      let raw = ''; try { raw = await new Response(req.body).text(); } catch(_) {}
-      let body = {}; try { body = JSON.parse(raw || '{}'); } catch(_) {}
+      let raw = ''; try { raw = await new Response(req.body).text(); } catch (_) {}
+      let body = {}; try { body = JSON.parse(raw || '{}'); } catch (_) {}
       role     = (body.role     || role).toString();
       jd       = (body.jd       || '').toString().slice(0, 2000);
       resume   = (body.resume   || '').toString().slice(0, 2000);
@@ -36,42 +36,51 @@ export default async function handler(req, res) {
       { q: "Describe a tough case you escalated. To whom, why, and what was the outcome?" },
       { q: "What are common indicators of beneficial ownership obfuscation?" },
       { q: "How do you handle missing or outdated documents during periodic reviews?" },
-      { q: "What’s your approach to name screening variations ( transliteration / aliases )?" },
+      { q: "What’s your approach to name screening variations (transliteration / aliases)?" },
       { q: "How do you ensure ongoing monitoring is effective post-onboarding?" },
       { q: "If the client is in a high-risk jurisdiction, what extra checks do you perform?" }
     ];
 
-    // Build interview script with strict turn-taking and controlled behavior
-    const orderedList = QUESTION_BANK.map((it, i) => `${i+1}. ${it.q}`).join('\n');
+    const orderedList = QUESTION_BANK.map((it, i) => `${i + 1}. ${it.q}`).join('\n');
 
+    // ---- STRICT BEHAVIOR & GREETING ----
     const instructions = `
-You are an HR interviewer for ${role} roles. The candidate has about ${expYears} years of experience.
-You will conduct the interview using the EXACT question list below—STRICT ORDER, ONE question at a time.
-Never invent new questions. Never stack multiple questions in one turn.
+You are a human HR interviewer.
 
-OPENING:
-- Greet the candidate briefly and say you'll ask questions one by one. Do not ask anything else in the opening.
+OPENING (must follow exactly):
+- Say: "Hi, I'm your mock HR interviewer. We'll go one question at a time. To start, please introduce yourself."
+- Stop. Do not ask any other question in the opening.
 
-QUESTION LIST:
+QUESTION LIST (ask in this exact order, one per turn):
 ${orderedList}
 
-RULES:
-- One question per turn only. If you ever asked more than one, immediately restate only a single question.
-- Keep your speaking turn under ~10–12 seconds.
-- Acknowledge the candidate in 2–6 words max (no parroting); then proceed to the next question.
-- Wait until the candidate fully finishes. Ignore tiny background noises.
-- If there's a long pause, say "Shall I continue?" then proceed to the next single question.
-- After the last question, give a brief positive summary and thank them.
+STRICT TURN-TAKING:
+- One question per turn only. Never stack multiple questions.
+- Never answer on behalf of the candidate. Never provide model/sample answers unless the candidate explicitly asks.
+- After the candidate answers, acknowledge very briefly (<= 6 words, no parroting), then ask the NEXT SINGLE question.
+- Keep each spoken turn under ~10 seconds.
 
-CONTEXT (optional, do not recite):
+LEVELING:
+- Candidate experience: ${expYears} years in ${role || 'compliance/finance'}.
+- Start at beginner/intermediate difficulty; escalate only if answers are strong.
+
+NOISE & PAUSES:
+- Ignore short background noises (keyboard, utensils).
+- Wait for clear, multi-word speech or a long pause before speaking.
+- If there's a long pause, say "Shall I continue?" then ask the next single question.
+
+CLOSING:
+- After the final question, give a short positive summary and thank them. End only if the candidate says "end interview".
+
+CONTEXT (do not recite):
 JOB DESCRIPTION (truncated):
 ${jd}
 
 CANDIDATE RESUME (truncated):
 ${resume}
-    `.trim();
+`.trim();
 
-    // Create realtime session
+    // ---- Create realtime session (tighter VAD) ----
     const r = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
@@ -81,23 +90,20 @@ ${resume}
       body: JSON.stringify({
         model: 'gpt-4o-mini-realtime-preview',
         voice: 'alloy',
-
-        // Turn-taking tuned for noisy environments
         turn_detection: {
           type: 'server_vad',
-          threshold: 0.90,            // less sensitive to clinks/background
-          prefix_padding_ms: 400,
-          silence_duration_ms: 4000   // wait longer so users finish
+          threshold: 0.94,          // higher = ignores brief clacks/utensils
+          prefix_padding_ms: 500,
+          silence_duration_ms: 5200 // ~5.2s before assuming the user finished
         },
-
-        max_response_output_tokens: 120,  // keep the bot brief
+        max_response_output_tokens: 110,  // shorter turns → no stacking
         modalities: ['text', 'audio'],
         instructions
       })
     });
 
     const data = await r.json();
-    if (data?.error) return res.status(400).json(data);
+    if (data?.error) return res.status(400).json(data); // Surface errors for easier debugging
     return res.status(200).json(data);
   } catch (e) {
     console.error('Realtime session error:', e);
