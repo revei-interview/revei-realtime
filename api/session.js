@@ -17,7 +17,6 @@ export default async function handler(req, res) {
   voice: 'alloy',
   // --- Keep the session alive and detect turns more reliably ---
   turn_detection: { type: 'server_vad', threshold: 0.6, prefix_padding_ms: 300, silence_duration_ms: 900 },
-  idle_timeout_ms: 600000,  // 10 minutes before idle timeout
   // --- Cap how long the bot speaks so it doesn't monologue ---
   max_response_output_tokens: 180,
   // --- Interview behavior (stop parroting, keep flow going) ---
