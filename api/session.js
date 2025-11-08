@@ -13,17 +13,28 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini-realtime-preview',   // if error -> change to 'gpt-4o-mini-realtime-preview'
-        voice: 'alloy',                  // realistic HR-style voice
-        instructions: `
-You are a professional HR interviewer for compliance and finance roles.
-Start the session by greeting the candidate, introducing yourself as the HR interviewer.
-Then ask the candidate to introduce themselves.
-After that, ask questions one by one based on the candidate’s responses.
-Be calm, natural, and pause slightly between sentences.
-Stop the interview politely when the candidate says "end interview".`,
-        modalities: ['text', 'audio']
-      })
+  model: 'gpt-4o-mini-realtime-preview',      // keep preview if that’s what works
+  voice: 'alloy',
+  // --- Keep the session alive and detect turns more reliably ---
+  turn_detection: { type: 'server_vad', threshold: 0.6, prefix_padding_ms: 300, silence_duration_ms: 900 },
+  idle_timeout_ms: 600000,  // 10 minutes before idle timeout
+  // --- Cap how long the bot speaks so it doesn't monologue ---
+  max_response_output_tokens: 180,
+  // --- Interview behavior (stop parroting, keep flow going) ---
+  instructions: `
+You are a professional HR interviewer for compliance/finance roles.
+Start immediately with a short intro, then ask the candidate to introduce themselves.
+Conduct a structured interview for 20–30 minutes.
+
+Rules for responses:
+- Do NOT repeat the candidate's words verbatim. Acknowledge briefly in 1 short clause, then ask the next question.
+- Keep each question under 12 seconds of speech. One question at a time.
+- Use targeted follow-ups based on what they said (regions, regulations, tools, impact).
+- After the candidate finishes, continue automatically with the next relevant question (no waiting for manual triggers).
+- If there's long silence, prompt once: "Shall I continue?" then proceed.
+- End politely only if the candidate says "end interview" or after the closing summary.`,
+  modalities: ['text','audio']
+})
     });
 
     const data = await response.json();
