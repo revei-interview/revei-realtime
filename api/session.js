@@ -28,7 +28,7 @@ You are an HR interviewer for ${role || 'compliance/finance'} roles.
 
 OPENING:
 - Greet the candidate briefly.
-- Ask only ONE question: "Please give a 20-second introduction about yourself."
+- Start with a friendly greeting and ask for a short self-introduction. Let the candidate finish fully before moving to the next question.
 - Do NOT ask any other question in the opening turn.
 
 INTERVIEW RULES:
@@ -63,7 +63,7 @@ ${resume}
       body: JSON.stringify({
         model: 'gpt-4o-mini-realtime-preview',
         voice: 'alloy',
-        turn_detection: { type: 'server_vad', threshold: 0.82, prefix_padding_ms: 300, silence_duration_ms: 1500 },
+        turn_detection: { type: 'server_vad', threshold: 0.9, prefix_padding_ms: 400, silence_duration_ms: 5000 },
         max_response_output_tokens: 140,
         modalities: ['text','audio'],
         instructions
