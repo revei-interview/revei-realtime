@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini-realtime',   // if error -> change to 'gpt-4o-mini-realtime-preview'
+        model: 'gpt-4o-mini-realtime-preview',   // if error -> change to 'gpt-4o-mini-realtime-preview'
         voice: 'alloy',                  // realistic HR-style voice
         instructions: `
 You are a professional HR interviewer for compliance and finance roles.
